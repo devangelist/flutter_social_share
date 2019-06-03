@@ -125,7 +125,7 @@ public class FlutterSocialSharePlugin implements MethodCallHandler, PluginRegist
                 .build();
 
         ShareHashtag hashTag = new ShareHashtag.Builder()
-                .setHashtag(title + "\n " + description + "\n#SoloPuedoUsarUnHashtag")
+                .setHashtag(title + "\n " + description + "\n#Tagueo")
                 .build();
 
         ShareVideoContent content = new ShareVideoContent.Builder()
@@ -146,7 +146,7 @@ public class FlutterSocialSharePlugin implements MethodCallHandler, PluginRegist
                 .build();
 
         ShareHashtag hashTag = new ShareHashtag.Builder()
-                .setHashtag(title + "\n" + description + "\n#SoloPuedoUsarUnHashtag")
+                .setHashtag(title + "\n" + description + "\n#Tagueo")
                 .build();
 
         SharePhotoContent content = new SharePhotoContent.Builder()
