@@ -76,22 +76,25 @@ public class FlutterSocialSharePlugin implements MethodCallHandler, PluginRegist
     }
 
 
-    private ShareDialog getShareDialog() {
+    private ShareDialog getShareDialog(final Result flutterResult) {
         ShareDialog shareDialog = new ShareDialog(activity);
 
         shareDialog.registerCallback(callbackManager, new FacebookCallback<Sharer.Result>() {
             @Override
             public void onSuccess(Sharer.Result result) {
+                flutterResult.success("success");
                 System.out.println("--------------------success");
             }
 
             @Override
             public void onCancel() {
+                flutterResult.error("canceled", "User Canceled", "The user canceled the operation");
                 System.out.println("-----------------onCancel");
             }
 
             @Override
             public void onError(FacebookException error) {
+                flutterResult.error("error", error.getMessage(), error);
                 System.out.println("---------------onError");
             }
         }, 10);
@@ -134,12 +137,12 @@ public class FlutterSocialSharePlugin implements MethodCallHandler, PluginRegist
                 .build();
 
         if (ShareDialog.canShow(ShareVideoContent.class)) {
-            ShareDialog.show(activity, content);
-            result.success("success");
+            getShareDialog(result).show(content);
         }
     }
 
     private void sharePhotoToFacebook(String uri, String title, String description, Result result) {
+
         Bitmap bitmap = BitmapFactory.decodeFile(uri);
         SharePhoto photo = new SharePhoto.Builder()
                 .setBitmap(bitmap)
@@ -155,8 +158,7 @@ public class FlutterSocialSharePlugin implements MethodCallHandler, PluginRegist
                 .build();
 
         if (ShareDialog.canShow(SharePhotoContent.class)) {
-            getShareDialog().show(content);
-            result.success("success");
+            getShareDialog(result).show(content);
         }
     }
 
