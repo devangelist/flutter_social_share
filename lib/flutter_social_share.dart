@@ -53,6 +53,34 @@ class FlutterSocialShare {
     return result;
   }
 
+  static Future<String> sharePhotoToInstagram({String url = '', String title = '', String description = ''}) async {
+    final Map<String, Object> arguments = Map<String, dynamic>();
+    arguments.putIfAbsent('uri', () => url);
+    arguments.putIfAbsent('title', () => title);
+    arguments.putIfAbsent('description', () => description);
+    dynamic result;
+    try {
+      result = await _channel.invokeMethod('shareInstagramPhoto', arguments);
+    } catch (e) {
+      return "false";
+    }
+    return result;
+  }
+
+  static Future<String> shareVideoToInstagram({String url = '', String title = '', String description = ''}) async {
+    final Map<String, Object> arguments = Map<String, dynamic>();
+    arguments.putIfAbsent('uri', () => url);
+    arguments.putIfAbsent('title', () => title);
+    arguments.putIfAbsent('description', () => description);
+    dynamic result;
+    try {
+      result = await _channel.invokeMethod('shareInstagramVideo', arguments);
+    } catch (e) {
+      return "false";
+    }
+    return result;
+  }
+
   ///use system share ui
   static Future<String> shareToSystem({String msg}) async {
     Map<String, Object> arguments = Map<String, dynamic>();

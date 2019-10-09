@@ -1,15 +1,15 @@
 package com.angelchanquin.flutter_social_share;
 
 import android.app.Activity;
+import android.content.ActivityNotFoundException;
+import android.content.Context;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.net.Uri;
 
 import com.facebook.CallbackManager;
-//import com.facebook.FacebookCallback;
-//import com.facebook.FacebookException;
-//import com.facebook.share.Sharer;
 import com.facebook.FacebookCallback;
 import com.facebook.FacebookException;
 import com.facebook.share.Sharer;
@@ -23,6 +23,8 @@ import com.facebook.share.widget.ShareDialog;
 
 import java.io.File;
 
+import androidx.annotation.NonNull;
+import androidx.core.content.FileProvider;
 import io.flutter.plugin.common.MethodCall;
 import io.flutter.plugin.common.MethodChannel;
 import io.flutter.plugin.common.MethodChannel.MethodCallHandler;
@@ -36,28 +38,33 @@ import io.flutter.plugin.common.PluginRegistry.Registrar;
 public class FlutterSocialSharePlugin implements MethodCallHandler, PluginRegistry.ActivityResultListener {
 
     private Activity activity;
-    private static CallbackManager callbackManager;
+    private final CallbackManager callbackManager;
+    private final Registrar registrar;
+    private final MethodChannel channel;
 
-    private FlutterSocialSharePlugin(MethodChannel channel, Activity activity) {
-        this.activity = activity;
-        channel.setMethodCallHandler(this);
+    private final static String INSTAGRAM_PACKAGE_NAME = "com.instagram.android";
+
+    private FlutterSocialSharePlugin(MethodChannel channel, Registrar registrar) {
+        this.channel = channel;
+        this.activity = registrar.activity();
+        this.registrar = registrar;
+        this.callbackManager = CallbackManager.Factory.create();
+        registrar.addActivityResultListener(this);
     }
 
     /**
      * Plugin registration.
      */
     public static void registerWith(Registrar registrar) {
-        callbackManager = CallbackManager.Factory.create();
-
         final MethodChannel channel = new MethodChannel(registrar.messenger(), "flutter_social_share");
-        final FlutterSocialSharePlugin instance = new FlutterSocialSharePlugin(channel, registrar.activity());
-        registrar.addActivityResultListener(instance);
+        final FlutterSocialSharePlugin instance = new FlutterSocialSharePlugin(channel, registrar);
         channel.setMethodCallHandler(instance);
-
     }
 
     @Override
-    public void onMethodCall(MethodCall call, Result result) {
+    public void onMethodCall(@NonNull MethodCall call, @NonNull Result result) {
+
+        final PackageManager pm = registrar.activeContext().getPackageManager();
 
         switch (call.method) {
             case "shareFacebook":
@@ -69,10 +76,56 @@ public class FlutterSocialSharePlugin implements MethodCallHandler, PluginRegist
             case "shareFacebookVideo":
                 shareVideoToFacebook((String) call.argument("uri"), (String) call.argument("title"), (String) call.argument("description"), result);
                 break;
+            case "shareInstagramPhoto":
+                try {
+                    pm.getPackageInfo(INSTAGRAM_PACKAGE_NAME, PackageManager.GET_ACTIVITIES);
+                    instagramShare("image/*", call.<String>argument("uri"));
+                    result.success(true);
+                } catch (PackageManager.NameNotFoundException e) {
+                    openPlayStore(INSTAGRAM_PACKAGE_NAME);
+                    result.success(false);
+                }
+                break;
+            case "shareInstagramVideo":
+                try {
+                    pm.getPackageInfo(INSTAGRAM_PACKAGE_NAME, PackageManager.GET_ACTIVITIES);
+                    instagramShare("video/*", call.<String>argument("uri"));
+                    result.success("success");
+                } catch (PackageManager.NameNotFoundException e) {
+                    openPlayStore(INSTAGRAM_PACKAGE_NAME);
+                    result.success(false);
+                }
+                break;
             default:
                 result.notImplemented();
                 break;
         }
+    }
+
+    private void openPlayStore(String packageName) {
+        final Context context = registrar.activeContext();
+        try {
+            final Uri playStoreUri = Uri.parse("market://details?id=" + packageName);
+            final Intent intent = new Intent(Intent.ACTION_VIEW, playStoreUri);
+            context.startActivity(intent);
+        } catch (ActivityNotFoundException e) {
+            final Uri playStoreUri = Uri.parse("https://play.google.com/store/apps/details?id=" + packageName);
+            final Intent intent = new Intent(Intent.ACTION_VIEW, playStoreUri);
+            context.startActivity(intent);
+        }
+    }
+
+    private void instagramShare(String type, String filePath) {
+        final Context context = registrar.activeContext();
+        final File file = new File(filePath);
+        final Uri uri = FileProvider.getUriForFile(context,
+                context.getPackageName() + ".fileprovider", file);
+        final Intent share = new Intent(Intent.ACTION_SEND);
+        share.setType(type);
+        share.putExtra(Intent.EXTRA_STREAM, uri);
+        share.setPackage(INSTAGRAM_PACKAGE_NAME);
+        share.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        context.startActivity(Intent.createChooser(share, "Share to"));
     }
 
 
@@ -128,7 +181,7 @@ public class FlutterSocialSharePlugin implements MethodCallHandler, PluginRegist
                 .build();
 
         ShareHashtag hashTag = new ShareHashtag.Builder()
-                .setHashtag(title + "\n " + description + "\n#Tagueo")
+                .setHashtag(title + "\n " + description)
                 .build();
 
         ShareVideoContent content = new ShareVideoContent.Builder()
@@ -149,7 +202,7 @@ public class FlutterSocialSharePlugin implements MethodCallHandler, PluginRegist
                 .build();
 
         ShareHashtag hashTag = new ShareHashtag.Builder()
-                .setHashtag(title + "\n" + description + "\n#Tagueo")
+                .setHashtag(title + "\n" + description)
                 .build();
 
         SharePhotoContent content = new SharePhotoContent.Builder()
@@ -159,25 +212,6 @@ public class FlutterSocialSharePlugin implements MethodCallHandler, PluginRegist
 
         if (ShareDialog.canShow(SharePhotoContent.class)) {
             getShareDialog(result).show(content);
-        }
-    }
-
-
-    /**
-     * share to System
-     *
-     * @param msg    String
-     * @param result Result
-     */
-    private void shareSystem(Result result, String msg) {
-        try {
-            Intent textIntent = new Intent("android.intent.action.SEND");
-            textIntent.setType("text/plain");
-            textIntent.putExtra("android.intent.extra.TEXT", msg);
-            activity.startActivity(Intent.createChooser(textIntent, "Share to"));
-            result.success("success");
-        } catch (Exception var7) {
-            result.error("error", var7.toString(), "");
         }
     }
 
